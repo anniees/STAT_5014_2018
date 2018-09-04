@@ -1,0 +1,214 @@
+---
+title: "HW2_Sauer_Annie"
+author: "Annie Sauer"
+date: "9/5/2018"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(readr)
+library(dplyr)
+library(tidyr)
+library(data.table)
+library(swirl)
+library(sjPlot)
+```
+
+## Problem 4
+
+Even though I am a student that primarily works on projects independently, version control is a useful tool that will allow me to back up and easily edit my codes.  With version control I can save multiple versions of a project and easily track the changes I make to it.  This will come in handy if I need to revert changes or see if minor changes actually had profound impacts on my code.  I may also collaborate with others on projects in the future, and I will already have a collaboration framework in place.
+
+## Problem 5
+### (a) Sensory data from five operators
+```{r, echo=TRUE}
+# Import data
+Sensory <- read_csv("https://www2.isye.gatech.edu/~jeffwu/wuhamadabook/data/Sensory.dat",
+                    col_names = "Data")
+head(Sensory)
+dim(Sensory)
+# This data is made up of 32 rows and one column.  Each row is a character string.  
+# There is a row indicator integer in every third row (ranging from 1 to 10).  First 
+# we need to separate each single row of characters into six separate columns (the 
+# first one representing the item and the other five representing the operators).
+
+sensory_new <- separate(Sensory, Data, c('Item','Operator 1','Operator 2',
+                                         'Operator 3','Operator 4','Operator 5'), 
+                        sep=" ",fill="left")
+sensory_new
+# The first two rows are now repeats of our header, and we can delete them.
+sensory_new <- sensory_new[-c(1,2),]
+# Next we create a vector to fill the "Item" column which contains many NA values.
+item = rep(1:10, each = 3)
+sensory_new['Item'] <- item
+# Finally we gather the five Operator columns into two columns.
+sensory_new <- sensory_new %>%
+  gather(Operator, Data,-Item) %>%
+  mutate(Operator = parse_number(Operator))
+# Change Data values to numeric values
+sensory_new$Data <- as.numeric(sensory_new$Data)
+# Produce summary table
+summary(sensory_new)
+```
+Now we have a tidy data set with three columns - Item, Operator, and Data.  Each column represents a single variable and each row represents a single observation.  The third column is titled 'Data' simply becasue we were not given information on the units or importance of these values.  In cleaning up this data, we assumed that each original row was in the proper order of Operators 1-5 and that the Items 1-10 carried through three rows each.  We may not have had enough information to assume this layout from the original data set.
+
+### (b) Gold Medal Performance for Olympic Men's Long Jump (year coded as 1900 = 0)
+
+```{r, echo=TRUE}
+# Import data
+Jump <- read_csv("https://www2.isye.gatech.edu/~jeffwu/wuhamadabook/data/LongJumpData.dat"
+                 ,col_names = "Data")
+head(Jump)
+dim(Jump)
+
+# We have a data set with seven rows and one column.  In the first row the 'Year' and 
+# 'Long Jump' headers are repeated four times each.  First we need to separate 
+# each row into the eight different columns that correspond to these initial headers.
+
+# Remove the first row of header information (we will soon assign new headers)
+jump_new <- Jump[-c(1),]
+# Separate into columns with new headers
+jump_new <- separate(jump_new, Data, c('Year 1','LJ 1','Year 2','LJ 2','Year 3',
+                                       'LJ 3','Year 4','LJ 4'), sep=" ")
+jump_new
+
+# Stack all year and jump columns
+years <- stack(jump_new, c('Year 1','Year 2','Year 3','Year 4')) 
+jumps <- stack(jump_new, c('LJ 1','LJ 2','LJ 3','LJ 4'))
+
+# Combine stacked columns into new data frame, remove the unnecessary indicators, 
+# and rename column headers
+jump_df = data.frame(years,jumps)
+jump_df <- jump_df[,-c(2,4)]
+names(jump_df) <- c('Year','Long Jump')
+# Remove the two rows of NA at the end 
+jump_df <- na.omit(jump_df)
+# Convert to numeric values
+jump_df$Year <- as.numeric(jump_df$Year)
+jump_df$`Long Jump`<- as.numeric(jump_df$`Long Jump`)
+
+# Produce summary table
+summary(jump_df)
+```
+We now have a tidy data set with two variables represented in two columns.  In rearranging this data we assumed that consecutive 'Year' and 'Long Jump' values were paired data, which should be a reasonable assumption.
+
+### (c) Brain weight (g) and body weight (kg) for 62 species.
+
+```{r}
+# Import data
+weight <- read_csv("https://www2.isye.gatech.edu/~jeffwu/wuhamadabook/data/BrainandBodyWeight.dat"
+                   ,col_names = "Data")
+head(weight)
+dim(weight)
+
+# Our data set is made up of 22 rows and 1 column.  In the first row we have
+# the column headers 'Body Wt' and 'Brain Wt' repeated three times each.  First
+# we must break up each row into the six separate columns that correspond to 
+# these headers.
+
+# Remove first row of header information (we will replace with new headers)
+weight_new <- weight[-c(1),]
+# Separate into columns and create new headers
+weight_new <- separate(weight_new, Data, c('Body 1','Brain 1','Body 2',
+                                           'Brain 2','Body 3','Brain 3'), sep=" ")
+weight_new
+
+# Stack all body weight and brain weight columns
+body <- stack(weight_new, c('Body 1','Body 2','Body 3')) 
+brain <- stack(weight_new, c('Brain 1','Brain 2','Brain 3'))
+
+# Combine stacked columns into new data frame
+weight_df = data.frame(body,brain)
+weight_df
+# Remove indicator columns (they are not necessary)
+weight_df <- weight_df[,-c(2,4)]
+# Rename columns
+names(weight_df) <- c('Body Weight','Brain Weight')
+# Omit NA row
+weight_df <- na.omit(weight_df)
+# Convert all values to numeric
+weight_df$`Body Weight` <- as.numeric(weight_df$`Body Weight`)
+weight_df$`Brain Weight` <- as.numeric(weight_df$`Brain Weight`)
+# Produce summary table
+summary(weight_df)
+```
+We now have a tidy data set with two variables represented in two columns.  Again, we had to assume that consecutive 'Brain Weight' and 'Body Weight' values were paired. 
+
+### (d) Triplicate measurements of tomato yield for two varieties of tomatos at three planting densities
+
+```{r, echo = TRUE}
+# Import data
+tomato <- fread("http://www2.isye.gatech.edu/~jeffwu/wuhamadabook/data/tomato.dat"
+                ,sep=" ")
+# Note - I used fread in this example so I could already use 'sep' and split the data
+# set into multiple columns.
+tomato
+dim(tomato)
+
+# Our data set is made up of 2 rows and 4 columns.  We first need to separate the data 
+# for each yield then separate the data for each variety.
+
+# First separate each row by density (nine columns, three of each density)
+tomato_new <- tomato %>%
+  separate('10000',into= c('10000.1','10000.2','10000.3'),sep=",") %>%
+  separate('20000',into= c('20000.1','20000.2','20000.3'),sep=",") %>%
+  separate('30000',into= c('30000.1','30000.2','30000.3'),sep=",")
+tomato_new
+
+# Now gather Variety and Density into their own columns.
+tomato_new <- tomato_new %>%
+  gather(Density, Yield,-V1) %>%
+  mutate(Density = as.integer(Density))
+tomato_new
+
+# Rename first column and change 'Yield' to numeric
+colnames(tomato_new)[1] <- "Variety"
+tomato_new$Yield <- as.numeric(tomato_new$Yield)
+
+# Produce summary table
+summary(tomato_new)
+```
+
+Now we have a tidy data set with three columns representing three variables.  We did not have to assume anything when rearranging the data set - the original data set was clearer than the previous ones.
+
+## Problem 6
+
+```{r, echo=TRUE}
+# Path to data
+.datapath <- file.path(path.package('swirl'), 'Courses',
+                       'R_Programming_E', 'Looking_at_Data',
+                       'plant-data.txt')
+# Read in data
+plants <- read.csv(.datapath, strip.white=TRUE, na.strings="")
+
+# Remove annoying columns
+.cols2rm <- c('Accepted.Symbol', 'Synonym.Symbol')
+plants <- plants[, !(names(plants) %in% .cols2rm)]
+
+# Make names pretty
+names(plants) <- c('Scientific_Name', 'Duration', 'Active_Growth_Period',
+                   'Foliage_Color', 'pH_Min', 'pH_Max',
+                   'Precip_Min', 'Precip_Max',
+                   'Shade_Tolerance', 'Temp_Min_F')
+
+# Ignore NA columns
+plants <- na.omit(plants)
+
+# Create a new column - mean of pH_min and pH_max
+plants <- mutate(plants, pH_mean = (pH_Min+pH_Max)/2)
+
+# Goal - Determine if there is a relationshp between Foliage_Color and pH_mean
+# Group data by Foliage Color and summarize pH by color
+by_color <- group_by(plants, Foliage_Color)
+summarise(by_color, pH_avg = mean(pH_mean),n=n())
+
+# Run a linear model   
+model <- lm(plants$pH_mean ~ plants$Foliage_Color)
+summary(model)
+
+```
+
+
+## Problem 7 - omitted 
+
+
