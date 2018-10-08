@@ -1,0 +1,43 @@
+---
+title: "HW7_Sauer_Annie"
+author: "Annie Sauer"
+date: "10/7/2018"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r, include=FALSE}
+library(readxl)
+library(ggplot2)
+library(dplyr)
+library(gganimate)
+```
+
+
+## Problem 1
+
+```{r, fig.width = 8, fig.height = 10}
+# Read data and combine into one sheet
+data_1 <- read_excel("04_projecting_knowledge_plots/HW4_data.xlsx", sheet = 1) 
+data_2 <- read_excel("04_projecting_knowledge_plots/HW4_data.xlsx", sheet = 2)
+data <- rbind(data_1, data_2)
+
+data <- group_by(data, block)
+ggplot(data, aes(x = depth, y = phosphate, colour = block)) +   
+  geom_point()+
+  theme(legend.position = "none")+
+  facet_wrap(~block, ncol = 3)
+```
+
+## Problem 2
+
+```{r}
+#ggplot(data, aes(x = depth, y = phosphate)) +   
+#  geom_point()+
+#  theme(legend.position = "none")+
+#  transition_states(block, 3, 1) + 
+#  ease_aes('cubic-in-out')
+```
+
+This code produced a gif, but when I knit the document it results in 50 pages of still images.  I commented it out to avoid this.
