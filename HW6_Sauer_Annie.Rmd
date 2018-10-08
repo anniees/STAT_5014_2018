@@ -1,0 +1,151 @@
+---
+title: "Homework 6"
+author: "Annie Sauer"
+date: "10/10/2018"
+output:
+  html_notebook: default
+  html_document: default
+---
+
+## Problem 2
+
+```{r}
+# Generate Data
+set.seed(12345)
+y <- seq(from=1, to=100, length.out = 1e8) + rnorm(1e8)
+
+ybar <- mean(y)
+
+# Method A - use a for loop 
+system.time({
+  sum <- 0
+  for (i in 1:length(y)){
+    sum <- sum + (y[i] - ybar)^2
+  } 
+  sst <- sum/(length(y)-1)
+})
+
+# Method B - use vector operations
+system.time({
+  sst2 <- sum((y-ybar)^2)/(length(y)-1)
+})
+```
+
+Method A ran in 7.534 seconds, but Method B ran in 0.828 seconds.  The vector operations were much faster than the for loop.  Both methods produced an sst value of 817.75.
+
+## Problem 3
+
+```{r}
+set.seed(1256)
+# Goal - estimate theta_0 and theta_1 using iterations
+theta <- as.matrix(c(1, 2), nrow=2) # True theta values
+X <- cbind(1, rep(1:10, 10)) # X input (data)
+h <- X %*% theta + rnorm(100, 0, 0.2) # Y output (data)
+
+# Initialze vectors to store theta_0 and theta_1 iterations
+theta_0 = vector()
+theta_1 = vector()
+# Choose two starting points (0,0) and (2,3)
+theta_0[1] <- 0 
+theta_1[1] <- 0
+theta_0[2] <- 2
+theta_1[2] <- 3
+tol <- 0.01 # tolerance
+alpha <- 0.01 # step size
+i = 1 # starting index of theta vectors
+count = 0
+max_it = 10000 # maximum iterations
+while((abs(theta_0[i+1] - theta_0[i]) > tol) & 
+      (abs(theta_1[i+1] - theta_1[i]) > tol)){
+  theta_0[i+2] <- theta_0[i] - (alpha/length(X))*sum(theta_0[i]+theta_1[i]*X[,2]-h)
+  theta_1[i+2] <- theta_1[i] - (alpha/length(X))*sum((theta_0[i]+theta_1[i]*X[,2]-h)*X[,2])
+  count = count + 1
+  i = i+1
+  if (count > max_it){
+    cat("Error: Maximum iterations reached.")
+    break
+  }
+}
+
+# Compare with linear model 
+model <- lm(h~0+X)
+```
+
+```{r, echo = FALSE}
+cat("Iterative Method \n")
+cat("Theta_0 = ", theta_0[length(theta_0)], "with error ", theta[1]-theta_0[length(theta_0)], "\n")
+cat("Theta_1 = ", theta_1[length(theta_1)], "with error ", theta[2]-theta_1[length(theta_1)], "\n")
+cat("Tolerance = ", tol, "\n")
+cat("Step Size = ", alpha, "\n\n")
+
+cat("Linear Model \n")
+cat("Theta_0 = ", model$coefficients[1], "with error ", theta[1]-model$coefficients[1], "\n")
+cat("Theta_1 = ", model$coefficients[2], "with error ", theta[2]-model$coefficients[2], "\n")
+```
+
+## Problem 4
+
+To solve
+\[\hat{\beta} = (X^TX)^{-1}X^Ty\]
+we can rewrite this equation as 
+\[(X^TX)\hat{\beta} = X^Ty\]
+Then we can use the solve function in R to find $\hat{\beta}$ without inverting any matrices.
+```{r}
+x <- cbind(1, rnorm(1000, 10, 1))
+y <- rnorm(1000, 20, 1)
+xTx <- t(x) %*% x
+xTy <- t(x) %*% y
+solve(xTx, xTy)
+```
+
+## Problem 5
+
+```{r}
+set.seed(12456) 
+    
+G <- matrix(sample(c(0,0.5,1),size=16000,replace=T),ncol=10)
+R <- cor(G) # R: 10 * 10 correlation matrix of G
+C <- kronecker(R, diag(1600)) # C is a 16000 * 16000 block diagonal matrix
+id <- sample(1:16000,size=932,replace=F)
+q <- sample(c(0,0.5,1),size=15068,replace=T) # vector of length 15068
+A <- C[id, -id] # matrix of dimension 932 * 15068
+B <- C[-id, -id] # matrix of dimension 15068 * 15068
+p <- runif(932,0,1)
+r <- runif(15068,0,1)
+C<-NULL #save some memory space
+```
+
+```{r, echo=FALSE}
+cat("A: ", object.size(A), " bytes \n")
+cat("B: ", object.size(B), "bytes")
+```
+
+```{r}
+# Calculate y (no tricks)
+system.time({
+  y = p + A %*% solve(B) %*% (q-r)
+})
+```
+
+This code ran in 1110.317 seconds.  Are there ways to make this faster?
+
+Idea 1: Multiplying a matrix by a vector should be faster than multiplying a matrix by another matrix.  We might be able to change the order of operations to increase the speed.
+
+```{r}
+# Calculate y (change order of operations)
+system.time({
+  y = p + A %*% (solve(B) %*% (q-r))
+})
+```
+
+This code ran in 925.593 seconds - slightly faster.
+
+Idea 2: Inverting $B$ seems to be taking a long time.  If we take the transpose of both sides, we can rewrite the above formula to remove $B^{-1}$ as follows
+\[B[(q-r)(q-r)^T]^{-1}(q-r)(y^T-p^T) = A\]
+We could then use the solve function to find $y^T-p^T$.  However this still involves inverting $(q-r)(q-r)^T$ which is the same size as $B$.  I suspected this method wouldn't be any faster.  I ran the code but cut it off after 30 minutes when it was confirmed that this equation took longer to run than the original.  
+
+Idea 3: We know that $B$ is symmetric.  Is there any way we could use this to our advantage? 
+
+
+
+
